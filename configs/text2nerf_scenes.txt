@@ -1,46 +1,78 @@
+# =========================
+# Text2NeRF Scene Config
+# =========================
 
-datadir = /apdcephfs/share_1330077/eckertzhang/Dataset/data_for_text2nerf
-expname =  debug
-basedir = /apdcephfs/private_eckertzhang/Codes/Results/Results_text2nerf
+# Path configurations
+datadir = data_example/my_scene
+expname = my_scene
+basedir = /content/drive/MyDrive/Text2NeRF_results
 dataset_name = scene_gen
 
-n_iters = 5000
-batch_size = 4096
+# Training parameters
+n_iters = 5000            # Total training iterations (increase for higher quality)
+batch_size = 2048         # Reduce if you get CUDA OOM
 step_ratio = 1.0
 
-N_voxel_init = 2097156 # 128**3=2097156
-N_voxel_final = 2097156 # 156**3
-#upsamp_list = [2000,3000,4000,5500,7000]
-#update_AlphaMask_list = [2000,4000]
-upsamp_list = [2000,3000,4000]
+# Volume initialization (memory-friendly)
+N_voxel_init = 1000000    # 100^3, for lower memory
+N_voxel_final = 1000000   # 100^3
+
+# Checkpointing and visualization
+upsamp_list = [50,100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200,2300,2400,2500,2600,2700,2800,2900,3000,3100,3200,3300,3400,3500,3600,3700,3800,3900,4000,4100,4200,4300,4400,4500,4600,4700,4800,4900,5000]  # Save checkpoints every 1000 iters
 update_AlphaMask_list = []
-
 N_vis = 12
-vis_every = 5000
-
+vis_every = 100          # Render outputs every 1000 iters
 render_test = 1
 
+# Model architecture (optimized for Colab)
+featureC = 48
 n_lamb_sigma = [16,16,16]
-n_lamb_sh = [48,48,48]
+n_lamb_sh = [32,32,32]
 model_name = TensorVMSplit
-
-
 shadingMode = MLP_Fea_noview
 fea2denseAct = softplus
 
+# Positional encoding
 pos_pe = 6
 view_pe = 2
 fea_pe = 6
 
+# Ray sampling (memory-friendly)
+nSamples = 50000
+
+# Regularization
 TV_weight_density = 0.1
 TV_weight_app = 0.01
-
 rm_weight_mask_thre = 1e-4
 
-## please uncomment following configuration if hope to training on cp model
-#model_name = TensorCP
-#n_lamb_sigma = [96]
-#n_lamb_sh = [288]
-#N_voxel_final = 125000000 # 500**3
-#L1_weight_inital = 1e-5
-#L1_weight_rest = 1e-5
+# Loss weights (default)
+L1_weight_inital = 0.0
+L1_weight_rest = 0.0
+Ortho_weight = 0.0
+
+# Misc
+downsample_train = 1.0
+downsample_test = 1.0
+
+# Camera/support set
+num_sprt_poses = 8
+dist_sprt_poses = 0.2
+
+# Depth loss and alignment
+type_depth_loss = mse
+
+# Inpainting
+dibr_fill_strategy = filling
+inpaint_method = sdm
+
+# Others
+seed = 1024
+progress_refresh_rate = 10
+
+# Uncomment for TensorCP (more memory-efficient, but less flexible)
+# model_name = TensorCP
+# n_lamb_sigma = [96]
+# n_lamb_sh = [288]
+# N_voxel_final = 125000000 # 500**3
+# L1_weight_inital = 1e-5
+# L1_weight_rest = 1e-5

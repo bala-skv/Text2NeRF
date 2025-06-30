@@ -623,6 +623,17 @@ def reconstruction(args):
                 PSNRs_train = evaluation(train_dataset, tensorf, args, renderer, f'{logfolder}/imgs_vis_inpaint_view/', N_vis=-1,
                                         prtx=f'epoch{global_epoch:04d}_', N_samples=nSamples, white_bg=white_bg, ndc_ray=ndc_ray, 
                                         compute_extra_metrics=False, device=device, N_iter=N_iter, preview=False)
+            # Add this code block RIGHT AFTER the visualization block
+            ckpt_dir = os.path.join(logfolder, 'ckpt')
+            os.makedirs(ckpt_dir, exist_ok=True)
+            ckpt_path = os.path.join(ckpt_dir, f'ckpt_{global_epoch:04d}.pth')
+            torch.save({
+                'model_state_dict': tensorf.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'global_step': global_step,
+                'global_epoch': global_epoch
+            }, ckpt_path)
+            print(f"Saved checkpoint at epoch {global_epoch} to {ckpt_path}")
     # Visualization after pre-training stage
     tensorf.save(f'{logfolder}/{args.expname}_final.th')
 
