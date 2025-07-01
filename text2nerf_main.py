@@ -12,8 +12,6 @@ from e_opt import config_parser
 from renderer import *
 from utils import *
 
-import numpy as np
-
 from PIL import Image
 from scripts.inpaint_sdm import text2inpainting_sdm
 from dataLoader.scene_util import get_local_fixed_poses2
@@ -43,24 +41,7 @@ def render_test(args):
 
     ckpt = torch.load(args.ckpt, map_location=device)
     kwargs = ckpt['kwargs']
-    # === ADD THIS CONVERSION BLOCK ===
-    # Convert gridSize to device-appropriate tensor
-    if 'gridSize' in kwargs:
-        if isinstance(kwargs['gridSize'], list):
-            # Convert list to tensor on target device
-            kwargs['gridSize'] = torch.tensor(kwargs['gridSize'], device=device)
-        elif kwargs['gridSize'].device != device:
-            # Ensure tensor is on correct device
-            kwargs['gridSize'] = kwargs['gridSize'].to(device)
 
-    # Convert aabb to device-appropriate tensor
-    if 'aabb' in kwargs:
-        if isinstance(kwargs['aabb'], np.ndarray):
-            # Convert NumPy array to tensor
-            kwargs['aabb'] = torch.tensor(kwargs['aabb'], device=device)
-        elif kwargs['aabb'].device != device:
-            kwargs['aabb'] = kwargs['aabb'].to(device)
-    # === END CONVERSION BLOCK ===
 
     kwargs.update({'device': device})
     tensorf = eval(args.model_name)(**kwargs)
@@ -473,6 +454,20 @@ def reconstruction(args):
                     pos_pe=args.pos_pe, view_pe=args.view_pe, fea_pe=args.fea_pe, featureC=args.featureC, step_ratio=args.step_ratio, fea2denseAct=args.fea2denseAct)
     grad_vars = tensorf.get_optparam_groups(args.lr_init, args.lr_basis)
     optimizer = torch.optim.Adam(grad_vars, betas=(0.9,0.99))
+    start_epoch = 0
+    if args.ckpt and os.path.exists(args.ckpt):
+        checkpoint = torch.load(args.ckpt, map_location=device)
+        if 'global_epoch' in checkpoint:
+            tensorf.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            start_epoch = checkpoint['global_epoch'] + 1
+            global_step = checkpoint['global_step']
+            torch.set_rng_state(checkpoint['rng_states']['torch'])
+            if checkpoint['rng_states']['cuda'] and torch.cuda.is_available():
+                torch.cuda.set_rng_state(checkpoint['rng_states']['cuda'])
+            np.random.set_state(checkpoint['rng_states']['numpy'])
+            random.setstate(checkpoint['rng_states']['python'])
+            print(f"Resumed training from epoch {start_epoch}")
 
     ### ----------- Training Prepare ------------
     torch.cuda.empty_cache()
@@ -488,7 +483,7 @@ def reconstruction(args):
     print('-'*10 + ' Begin training! ' + '-'*10)
     n_epoch_stage1, n_epoch_stage2_each = args.n_stage1, args.n_stage2
     global_step = 0
-    global_epoch = 0
+    global_epoch = start_epoch
 
     ### ----------- Training ------------
     allrays, allrgbs, alldepth = train_dataset.all_rays, train_dataset.all_rgbs, train_dataset.all_depth
@@ -511,9 +506,8 @@ def reconstruction(args):
     N_iter = 0
     n_epoch_stage2 = n_epoch_stage2_each * (poses_gen.shape[0]-1)
     n_total = n_epoch_stage1+n_epoch_stage2
-    for epoch in range(n_total+10):
+    for epoch in range(start_epoch,n_total+10):
         global_epoch += 1
-
         if epoch >= n_epoch_stage1 and (epoch-n_epoch_stage1)%n_epoch_stage2_each==0 and epoch < n_total:
             N_iter = (epoch-n_epoch_stage1)//n_epoch_stage2_each + 1
 
@@ -644,27 +638,29 @@ def reconstruction(args):
                 PSNRs_train = evaluation(train_dataset, tensorf, args, renderer, f'{logfolder}/imgs_vis_inpaint_view/', N_vis=-1,
                                         prtx=f'epoch{global_epoch:04d}_', N_samples=nSamples, white_bg=white_bg, ndc_ray=ndc_ray, 
                                         compute_extra_metrics=False, device=device, N_iter=N_iter, preview=False)
-            # Add this code block RIGHT AFTER the visualization block
-            # Add this code block RIGHT AFTER the visualization block
-            ckpt_dir = os.path.join(logfolder, 'ckpt')
+        # Inside the reconstruction() function, after the training loop for an epoch:
+        if global_epoch % 50 == 0 and global_epoch <= n_epoch_stage1:
+            # Create checkpoint directory
+            ckpt_dir = os.path.join(logfolder, 'ckpt_stage1')
             os.makedirs(ckpt_dir, exist_ok=True)
-            ckpt_path = os.path.join(ckpt_dir, f'ckpt_{global_epoch:04d}.pth')
-
-            # Save model initialization parameters as kwargs
-            kwargs = {
-                'aabb': tensorf.aabb.cpu().numpy(),  # Bounding box
-                'gridSize': tensorf.gridSize.cpu().tolist(),  # Current grid resolution
-                'device': device  # Training device
-            }
-
+            ckpt_path = os.path.join(ckpt_dir, f'stage1_epoch_{global_epoch}.pth')
+            
+            # Save checkpoint
             torch.save({
                 'model_state_dict': tensorf.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'global_step': global_step,
                 'global_epoch': global_epoch,
-                'kwargs': kwargs  # MUST be included for loading
+                'global_step': global_step,
+                'rng_states': {
+                    'torch': torch.get_rng_state(),
+                    'cuda': torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
+                    'numpy': np.random.get_state(),
+                    'python': random.getstate()
+                }
             }, ckpt_path)
-            print(f"Saved checkpoint at epoch {global_epoch} to {ckpt_path}")
+            print(f"Saved Stage 1 checkpoint at epoch {global_epoch}")
+
+        
 
     # Visualization after pre-training stage
     tensorf.save(f'{logfolder}/{args.expname}_final.th')
