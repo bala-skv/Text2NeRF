@@ -12,6 +12,8 @@ from e_opt import config_parser
 from renderer import *
 from utils import *
 
+import numpy as np
+
 from PIL import Image
 from scripts.inpaint_sdm import text2inpainting_sdm
 from dataLoader.scene_util import get_local_fixed_poses2
@@ -41,6 +43,25 @@ def render_test(args):
 
     ckpt = torch.load(args.ckpt, map_location=device)
     kwargs = ckpt['kwargs']
+    # === ADD THIS CONVERSION BLOCK ===
+    # Convert gridSize to device-appropriate tensor
+    if 'gridSize' in kwargs:
+        if isinstance(kwargs['gridSize'], list):
+            # Convert list to tensor on target device
+            kwargs['gridSize'] = torch.tensor(kwargs['gridSize'], device=device)
+        elif kwargs['gridSize'].device != device:
+            # Ensure tensor is on correct device
+            kwargs['gridSize'] = kwargs['gridSize'].to(device)
+
+    # Convert aabb to device-appropriate tensor
+    if 'aabb' in kwargs:
+        if isinstance(kwargs['aabb'], np.ndarray):
+            # Convert NumPy array to tensor
+            kwargs['aabb'] = torch.tensor(kwargs['aabb'], device=device)
+        elif kwargs['aabb'].device != device:
+            kwargs['aabb'] = kwargs['aabb'].to(device)
+    # === END CONVERSION BLOCK ===
+
     kwargs.update({'device': device})
     tensorf = eval(args.model_name)(**kwargs)
     tensorf.load(ckpt)
@@ -631,8 +652,8 @@ def reconstruction(args):
 
             # Save model initialization parameters as kwargs
             kwargs = {
-                'aabb': tensorf.aabb,  # Bounding box
-                'gridSize': tensorf.gridSize,  # Current grid resolution
+                'aabb': tensorf.aabb.cpu().numpy(),  # Bounding box
+                'gridSize': tensorf.gridSize.cpu().tolist(),  # Current grid resolution
                 'device': device  # Training device
             }
 
