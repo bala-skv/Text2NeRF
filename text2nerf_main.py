@@ -448,6 +448,26 @@ def reconstruction(args):
         tensorf = eval(args.model_name)(**kwargs)
         tensorf.load(ckpt)
     else:
+        #added
+         kwargs = {
+            'aabb': aabb,
+            'gridSize': reso_cur,
+            'device': device,
+            'density_n_comp': n_lamb_sigma,
+            'appearance_n_comp': n_lamb_sh,
+            'app_dim': args.data_dim_color,
+            'near_far': near_far,
+            'shadingMode': args.shadingMode,
+            'alphaMask_thres': args.alpha_mask_thre,
+            'density_shift': args.density_shift,
+            'distance_scale': args.distance_scale,
+            'pos_pe': args.pos_pe,
+            'view_pe': args.view_pe,
+            'fea_pe': args.fea_pe,
+            'featureC': args.featureC,
+            'step_ratio': args.step_ratio,
+            'fea2denseAct': args.fea2denseAct,
+        }
         tensorf = eval(args.model_name)(aabb, reso_cur, device,
                     density_n_comp=n_lamb_sigma, appearance_n_comp=n_lamb_sh, app_dim=args.data_dim_color, near_far=near_far,
                     shadingMode=args.shadingMode, alphaMask_thres=args.alpha_mask_thre, density_shift=args.density_shift, distance_scale=args.distance_scale,
@@ -664,7 +684,8 @@ def reconstruction(args):
                     'cuda': torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
                     'numpy': np.random.get_state(),
                     'python': random.getstate()
-                }
+                },
+                'kwargs': kwargs,
             }, ckpt_path)
             print(f"Saved Stage 1 checkpoint at epoch {global_epoch}")
 
