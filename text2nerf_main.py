@@ -476,18 +476,25 @@ def reconstruction(args):
     optimizer = torch.optim.Adam(grad_vars, betas=(0.9,0.99))
     start_epoch = 0
     if args.ckpt and os.path.exists(args.ckpt):
-        checkpoint = torch.load(args.ckpt, map_location=device)
-        if 'global_epoch' in checkpoint:
-            tensorf.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            start_epoch = checkpoint['global_epoch'] + 1
-            global_step = checkpoint['global_step']
-            torch.set_rng_state(checkpoint['rng_states']['torch'])
-            if checkpoint['rng_states']['cuda'] and torch.cuda.is_available():
-                torch.cuda.set_rng_state(checkpoint['rng_states']['cuda'])
-            np.random.set_state(checkpoint['rng_states']['numpy'])
-            random.setstate(checkpoint['rng_states']['python'])
-            print(f"Resumed training from epoch {start_epoch} out of {args.n_stage1} stage 1 epochs")
+      checkpoint = torch.load(args.ckpt, map_location='cpu')  # Load to CPU first
+      if 'global_epoch' in checkpoint:
+          # Restore model and optimizer
+          tensorf.load_state_dict(checkpoint['model_state_dict'])
+          optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+          start_epoch = checkpoint['global_epoch'] + 1
+          global_step = checkpoint['global_step']
+          # Restore RNG states (CPU tensors)
+          torch.set_rng_state(checkpoint['rng_states']['torch'])
+          # Fix: Check for None before accessing CUDA state
+          if checkpoint['rng_states']['cuda'] is not None and torch.cuda.is_available():
+              cuda_state = checkpoint['rng_states']['cuda']
+              # Ensure tensor is on CPU and uint8
+              if cuda_state.is_cuda:
+                  cuda_state = cuda_state.cpu()
+              torch.cuda.set_rng_state(cuda_state)
+          np.random.set_state(checkpoint['rng_states']['numpy'])
+          random.setstate(checkpoint['rng_states']['python'])
+          print(f"Resumed training from epoch {start_epoch}")
             # --- Patch: Rebuild support set if resuming from Stage 1 checkpoint ---
             expected_support_views = 9  # 1 initial + 8 support (adjust if your config differs)
             if start_epoch < args.n_stage1:
