@@ -467,7 +467,15 @@ def reconstruction(args):
                 torch.cuda.set_rng_state(checkpoint['rng_states']['cuda'])
             np.random.set_state(checkpoint['rng_states']['numpy'])
             random.setstate(checkpoint['rng_states']['python'])
-            print(f"Resumed training from epoch {start_epoch}")
+            print(f"Resumed training from epoch {start_epoch} out of {args.n_stage1} stage 1 epochs")
+            # --- Patch: Rebuild support set if resuming from Stage 1 checkpoint ---
+            expected_support_views = 9  # 1 initial + 8 support (adjust if your config differs)
+            if start_epoch < args.n_stage1:
+                # If support set is missing or incomplete, rebuild it
+                if hasattr(train_dataset, 'all_rgbs_gen_split') and train_dataset.all_rgbs_gen_split.shape[0] < expected_support_views:
+                    print('[Patch] Rebuilding support set views on resume from Stage 1 checkpoint...')
+                    # Re-instantiate the dataset to trigger support set generation
+                    train_dataset = dataset(args, split='train')
 
     ### ----------- Training Prepare ------------
     torch.cuda.empty_cache()
