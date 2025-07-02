@@ -495,14 +495,8 @@ def reconstruction(args):
           np.random.set_state(checkpoint['rng_states']['numpy'])
           random.setstate(checkpoint['rng_states']['python'])
           print(f"Resumed training from epoch {start_epoch}")
-            # --- Patch: Rebuild support set if resuming from Stage 1 checkpoint ---
-            expected_support_views = 9  # 1 initial + 8 support (adjust if your config differs)
-            if start_epoch < args.n_stage1:
-                # If support set is missing or incomplete, rebuild it
-                if hasattr(train_dataset, 'all_rgbs_gen_split') and train_dataset.all_rgbs_gen_split.shape[0] < expected_support_views:
-                    print('[Patch] Rebuilding support set views on resume from Stage 1 checkpoint...')
-                    # Re-instantiate the dataset to trigger support set generation
-                    train_dataset = dataset(args, split='train')
+          train_dataset = dataset(args, split='train')
+          print("dataset loaded")
 
     ### ----------- Training Prepare ------------
     torch.cuda.empty_cache()
@@ -516,6 +510,7 @@ def reconstruction(args):
     print(f"initial TV_weight density: {TV_weight_density} appearance: {TV_weight_app}")
 
     print('-'*10 + ' Begin training! ' + '-'*10)
+    args.n_stage1=args.n_stage1+5
     n_epoch_stage1, n_epoch_stage2_each = args.n_stage1, args.n_stage2
     global_step = 0
     global_epoch = start_epoch
@@ -674,7 +669,7 @@ def reconstruction(args):
                                         prtx=f'epoch{global_epoch:04d}_', N_samples=nSamples, white_bg=white_bg, ndc_ray=ndc_ray, 
                                         compute_extra_metrics=False, device=device, N_iter=N_iter, preview=False)
         # Inside the reconstruction() function, after the training loop for an epoch:
-        if global_epoch % 50 == 0 and global_epoch <= n_epoch_stage1:
+        if global_epoch % 50 == 0 :
             # Create checkpoint directory
             ckpt_dir = os.path.join(logfolder, 'ckpt_stage1')
             os.makedirs(ckpt_dir, exist_ok=True)
