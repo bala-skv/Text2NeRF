@@ -449,7 +449,7 @@ def reconstruction(args):
         tensorf.load(ckpt)
     else:
         #added
-         kwargs = {
+        kwargs = {
             'aabb': aabb,
             'gridSize': reso_cur,
             'device': device,
