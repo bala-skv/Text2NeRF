@@ -539,7 +539,7 @@ def reconstruction(args):
     for epoch in range(start_epoch,n_total+10):
         global_epoch += 1
         if epoch >= n_epoch_stage1 and (epoch-n_epoch_stage1)%n_epoch_stage2_each==0 and epoch < n_total:
-            N_iter = (epoch-n_epoch_stage1)//n_epoch_stage2_each + 1
+            N_iter = (epoch-(n_epoch_stage1))//n_epoch_stage2_each + 1
 
             W, H = train_dataset.img_wh
             intrinsic = (train_dataset.focal_x, train_dataset.focal_y, train_dataset.cx, train_dataset.cy)
@@ -669,7 +669,7 @@ def reconstruction(args):
                                         prtx=f'epoch{global_epoch:04d}_', N_samples=nSamples, white_bg=white_bg, ndc_ray=ndc_ray, 
                                         compute_extra_metrics=False, device=device, N_iter=N_iter, preview=False)
         # Inside the reconstruction() function, after the training loop for an epoch:
-        if global_epoch % 50 == 0 :
+        if global_epoch % 150 == 0 :
             # Create checkpoint directory
             ckpt_dir = os.path.join(logfolder, 'ckpt_stage1')
             os.makedirs(ckpt_dir, exist_ok=True)
@@ -689,6 +689,7 @@ def reconstruction(args):
                 },
                 'kwargs': kwargs,
             }, ckpt_path)
+            tensorf.save(f'{logfolder}/{args.expname}_{global_epoch}.th')
             print(f"Saved Stage 1 checkpoint at epoch {global_epoch}")
 
         
