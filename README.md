@@ -1,5 +1,5 @@
 # [Text2NeRF](https://eckertzhang.github.io/Text2NeRF.github.io/)
-Official implementation of '[Text2NeRF: Text-Driven 3D Scene Generation with Neural Radiance Fields](https://arxiv.org/abs/2305.11588)'. 
+ implementation of '[Text2NeRF: Text-Driven 3D Scene Generation with Neural Radiance Fields](https://arxiv.org/abs/2305.11588)'. 
 Note: This code is forked from [TensoRF](https://apchenstu.github.io/TensoRF/).
 
 <img src='https://eckertzhang.github.io/Text2NeRF.github.io/static/images/teaser.png'>
